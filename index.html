@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gira y Gana | Monterrey</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="background-grid"></div>
+  <div class="ambient ambient-1"></div>
+  <div class="ambient ambient-2"></div>
+  <div id="particles" class="particles"></div>
+
+  <!-- =========================
+       PANTALLA 1: REGISTRO
+  ========================== -->
+  <section id="screenInvoice" class="screen screen-invoice active">
+    <header class="topbar">
+      <img src="logo-monterrey-blanco.svg" alt="Monterrey" class="brand-logo">
+      <span class="campaign-pill">PROMOCIÓN ESPECIAL</span>
+    </header>
+
+    <div class="invoice-content">
+      <div class="invoice-visual">
+        <span class="eyebrow">COMPRA · PARTICIPA · GANA</span>
+
+        <h1>
+          TU COMPRA<br>
+          <span>PUEDE TENER PREMIO</span>
+        </h1>
+
+        <p>
+          Ingresa tu número de factura para acceder a la ruleta Monterrey.
+        </p>
+
+        <div class="steps">
+          <div class="step active">
+            <b>01</b>
+            <span>REGISTRA</span>
+          </div>
+          <div class="step">
+            <b>02</b>
+            <span>GIRA</span>
+          </div>
+          <div class="step">
+            <b>03</b>
+            <span>GANA</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="validation-card" id="validationCard">
+        <div class="form-field">
+          <label for="invoice">NÚMERO DE FACTURA</label>
+          <div class="input-shell">
+            <span>#</span>
+            <input id="invoice" type="text" inputmode="numeric" placeholder="Ej. 458721" maxlength="30" autocomplete="off">
+          </div>
+        </div>
+
+
+        <button id="validateBtn" class="primary-btn">
+          <span>VALIDAR Y CONTINUAR</span>
+          <i>→</i>
+        </button>
+
+        <div class="validation-status" id="validationStatus">
+          <span class="status-dot"></span>
+          <span id="statusText">Ingresa tu número de factura para continuar.</span>
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <span>MONTERREY 2026</span>
+      <span>© 2026 Monterrey SRL | Ruleta · Participa y Gana</span>
+    </footer>
+  </section>
+
+  <!-- =========================
+       TRANSICIÓN
+  ========================== -->
+  <div id="successTransition" class="success-transition hidden">
+    <div class="success-circle">✓</div>
+    <span>FACTURA REGISTRADA</span>
+    <strong>¡TU PARTICIPACIÓN ESTÁ LISTA!</strong>
+  </div>
+
+  <!-- =========================
+       PANTALLA 2: MISMA RULETA
+  ========================== -->
+  <section id="screenWheel" class="screen screen-wheel">
+    <header class="topbar wheel-topbar">
+      <img src="logo-monterrey-blanco.svg" alt="Monterrey" class="brand-logo">
+      <div class="invoice-badge">
+        FACTURA <b>#<span id="invoiceDisplay"></span></b>
+      </div>
+    </header>
+
+    <div class="wheel-layout">
+      <div class="wheel-copy">
+        <span class="eyebrow">¡ESTÁS PARTICIPANDO!</span>
+        <h2>
+          AHORA SÍ...
+          <span>¡GIRA Y GANA!</span>
+        </h2>
+        <p>Presiona el botón y descubre qué premio te toca.</p>
+      </div>
+
+      <div class="wheel-zone">
+
+        <div class="wheel-stage" id="wheelStage">
+          <div class="halo halo-one"></div>
+          <div class="halo halo-two"></div>
+
+          <div class="pointer-wrap">
+            <div class="pointer-glow"></div>
+            <div class="pointer"></div>
+          </div>
+
+          <div class="bulb-ring" id="bulbRing"></div>
+
+          <div class="wheel-frame">
+            <canvas id="wheel" width="760" height="760"></canvas>
+
+            <div class="hub">
+              <div class="hub-ring"></div>
+              <div class="hub-core">
+                <img src="Isotipo Blanco.svg" alt="Monterrey" class="hub-logo">
+              </div>
+            </div>
+          </div>
+
+          <div class="wheel-shadow"></div>
+        </div>
+
+        <button id="spinBtn" class="spin-btn">
+          <span class="spin-flare"></span>
+          <span class="spin-main">GIRAR AHORA</span>
+          <span class="spin-sub">DESCUBRE TU PREMIO</span>
+        </button>
+
+        <div class="security-note">
+          <span>✓</span>
+          Esta factura habilita una sola participación
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <span>MONTERREY 2026</span>
+      <span>© 2026 Monterrey SRL | Ruleta · Participa y Gana</span>
+    </footer>
+  </section>
+
+  <!-- =========================
+       RESULTADO
+  ========================== -->
+  <div id="resultModal" class="result-overlay hidden">
+    <div id="confettiLayer" class="confetti-layer"></div>
+    <div class="result-rays"></div>
+
+    <div class="result-card">
+      <span class="result-mini">MONTERREY · GIRA Y GANA</span>
+      <h3>¡FELICIDADES!</h3>
+      <p>Tu compra acaba de convertirse en:</p>
+
+      <div class="prize-reveal">
+        <span>TU PREMIO</span>
+        <strong id="prizeName">KIT MONTERREY</strong>
+      </div>
+
+      <div class="result-details">
+        <span>Factura: <b>#<span id="resultInvoice"></span></b></span>
+      </div>
+
+      <button id="finishBtn" class="finish-btn">FINALIZAR</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

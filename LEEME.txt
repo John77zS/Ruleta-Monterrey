@@ -1,0 +1,35 @@
+MONTERREY - RULETA SOLO FACTURA
+================================
+
+Se mantienen:
+- La misma ruleta visual.
+- Efectos, luces, puntero, confeti y giro.
+- Google Sheets.
+- reporte.html local.
+
+Se eliminaron por completo:
+- Nombre
+- Celular
+- Sucursal
+
+DATOS GUARDADOS:
+- Fecha
+- Hora
+- Factura
+- Premio
+
+GOOGLE SHEETS:
+La hoja "Participaciones" debe tener:
+A1: Fecha
+B1: Hora
+C1: Factura
+D1: Premio
+
+Apps Script:
+Usa el archivo apps-script-google-sheets.gs.
+IMPORTANTE: reemplaza PEGA_AQUI_TU_SHEET_ID por el ID que ya estabas usando.
+
+Después de editar Apps Script:
+Implementar > Administrar implementaciones > Editar > Nueva versión > Implementar.
+
+La URL de Apps Script ya está incluida en script.js.

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reporte | Monterrey</title>
+  <link rel="stylesheet" href="report.css">
+</head>
+<body>
+<header>
+  <img src="logo-monterrey.svg" alt="Monterrey">
+  <div>
+    <span>ADMINISTRACIÓN</span>
+    <h1>Reporte de participaciones</h1>
+  </div>
+</header>
+
+<main>
+  <section class="stats">
+    <article><span>PARTICIPACIONES</span><strong id="total">0</strong></article>
+    <article><span>FACTURAS REGISTRADAS</span><strong id="invoiceCount">0</strong></article>
+    <article><span>PREMIOS ENTREGADOS</span><strong id="prizeCount">0</strong></article>
+  </section>
+
+  <section class="toolbar">
+    <input id="search" type="search" placeholder="Buscar número de factura o premio...">
+    <button id="downloadCsv">DESCARGAR CSV</button>
+    <button id="resetData" class="secondary">BORRAR PRUEBAS</button>
+  </section>
+
+  <section class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Hora</th>
+          <th>Factura</th>
+          <th>Premio</th>
+        </tr>
+      </thead>
+      <tbody id="reportBody"></tbody>
+    </table>
+    <div id="emptyState" class="empty">No hay participaciones registradas en este dispositivo.</div>
+  </section>
+
+  <p class="notice">
+    Google Sheets es el reporte central. Este reporte local solo muestra participaciones guardadas en este navegador.
+  </p>
+</main>
+<script src="report.js"></script>
+</body>
+</html>
