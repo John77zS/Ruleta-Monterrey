@@ -2,11 +2,11 @@ const prizes = [
   "Gorra Monterrey",
   "Polera Monterrey",
   "Tomatodo",
-  "Kit Monterrey",
-  "Vale de descuento",
+  "Lapicero",
+  "Cuaderno",
   "Mochila",
-  "Premio sorpresa",
-  "Premio especial"
+  "Agenda",
+  "Chanchito"
 ];
 
 const colors = [
