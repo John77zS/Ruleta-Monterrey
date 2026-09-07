@@ -94,6 +94,9 @@ const STORAGE_KEY = "monterrey-participaciones-v4";
 const GOOGLE_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbxzxp_GcRV6n-MGyWnutvyUA1e0Gs-5w6EwhgxcWglZoHmuCfRMhGzNA4ycXS-y8Mh7cA/exec";
 
+// VALIDACIÓN DE FACTURA - PRODUCCIÓN v2
+console.log("Ruleta Monterrey: validador de factura v2 cargado");
+
 
 // =============================
 // ELEMENTOS DEL DOM
@@ -255,99 +258,203 @@ function saveParticipation(data) {
 // COMPROBAR FACTURA EN GOOGLE SHEETS
 // ==========================================
 
-async function checkInvoiceInGoogleSheets(invoice) {
+function checkInvoiceInGoogleSheets(invoice) {
+  return new Promise((resolve, reject) => {
 
-  try {
+    const callbackName =
+      "checkInvoice_" +
+      Date.now() +
+      "_" +
+      Math.floor(Math.random() * 100000);
+
+    const script = document.createElement("script");
+
+    let terminado = false;
+
+    const limpiar = () => {
+      if (terminado) return;
+
+      terminado = true;
+
+      clearTimeout(timeout);
+
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+
+      try {
+        delete window[callbackName];
+      } catch (e) {
+        window[callbackName] = undefined;
+      }
+    };
+
+    const timeout = setTimeout(() => {
+
+      limpiar();
+
+      reject(
+        new Error(
+          "Tiempo de espera agotado al consultar Google Sheets."
+        )
+      );
+
+    }, 15000);
+
+
+    // ==========================================
+    // RESPUESTA DE GOOGLE SHEETS
+    // ==========================================
+
+    window[callbackName] = function(data) {
+
+      if (terminado) return;
+
+      limpiar();
+
+      console.log(
+        "Respuesta Google Sheets:",
+        data
+      );
+
+      if (!data) {
+
+        reject(
+          new Error(
+            "Google Sheets no devolvió datos."
+          )
+        );
+
+        return;
+      }
+
+
+      if (data.ok !== true) {
+
+        reject(
+          new Error(
+            data.error ||
+            "Error consultando Google Sheets."
+          )
+        );
+
+        return;
+      }
+
+
+      // IMPORTANTE:
+      // Convertimos explícitamente a booleano
+
+      const existe =
+        data.exists === true ||
+        data.exists === "true";
+
+
+      console.log(
+        "Factura:",
+        invoice,
+        "Existe:",
+        existe
+      );
+
+
+      resolve(existe);
+    };
+
+
+    // ==========================================
+    // URL
+    // ==========================================
 
     const url =
       GOOGLE_SCRIPT_URL +
-      "?action=checkInvoice&invoice=" +
-      encodeURIComponent(invoice);
+      "?action=checkInvoice" +
+      "&invoice=" +
+      encodeURIComponent(
+        String(invoice).trim()
+      ) +
+      "&callback=" +
+      encodeURIComponent(
+        callbackName
+      ) +
+      "&t=" +
+      Date.now();
 
 
-    const response =
-      await fetch(url, {
-        method: "GET",
-        cache: "no-store"
-      });
+    console.log(
+      "Consultando factura:",
+      invoice
+    );
 
-
-    if (!response.ok) {
-
-      throw new Error(
-        "No se pudo consultar Google Sheets."
-      );
-
-    }
-
-
-    const data =
-      await response.json();
-
-
-    if (!data.ok) {
-
-      throw new Error(
-        data.error ||
-        "Error consultando la factura."
-      );
-
-    }
-
-
-    return data.exists;
-
-
-  } catch (error) {
-
-    console.error(
-      "Error comprobando factura:",
-      error
+    console.log(
+      "URL:",
+      url
     );
 
 
-    throw error;
-  }
+    script.src = url;
+
+
+    script.onerror = function() {
+
+      limpiar();
+
+      reject(
+        new Error(
+          "No se pudo conectar con Google Sheets."
+        )
+      );
+
+    };
+
+
+    document.body.appendChild(script);
+
+  });
 }
+
 // =============================
+// GOOGLE SHEETS// =============================
 // GOOGLE SHEETS
 // =============================
 
 function sendToGoogleSheets(record) {
 
   const payload = {
-
     fecha: record.date,
-
     hora: record.time,
-
     regional: record.regional,
-
     factura: record.invoice,
-
     premio: record.prize
-
   };
+
+  console.log(
+    "Enviando participación a Google Sheets:",
+    payload
+  );
 
   fetch(
     GOOGLE_SCRIPT_URL,
     {
       method: "POST",
-
       mode: "no-cors",
-
       headers: {
-        "Content-Type":
-          "text/plain;charset=utf-8"
+        "Content-Type": "text/plain;charset=utf-8"
       },
-
       body: JSON.stringify(payload)
     }
   )
+  .then(() => {
+
+    console.log(
+      "Participación enviada a Google Sheets."
+    );
+
+  })
   .catch(error => {
 
     console.error(
-      "No se pudo enviar la participación a Google Sheets:",
+      "ERROR enviando participación a Google Sheets:",
       error
     );
 
@@ -375,11 +482,10 @@ function setValidationState(type, message) {
   statusText.textContent = message;
 }
 
-
 async function validateData() {
 
   const regional =
-    regionalSelect.value;
+    regionalSelect.value.trim();
 
   const invoice =
     invoiceInput.value.trim();
@@ -420,10 +526,11 @@ async function validateData() {
 
 
   // ==========================================
-  // CONSULTANDO GOOGLE SHEETS
+  // DESACTIVAR BOTÓN
   // ==========================================
 
   validateBtn.disabled = true;
+
 
   setValidationState(
     "",
@@ -433,22 +540,56 @@ async function validateData() {
 
   try {
 
+    console.log(
+      "================================="
+    );
+
+    console.log(
+      "VALIDANDO FACTURA:",
+      invoice
+    );
+
+
+    // ==========================================
+    // CONSULTAR GOOGLE SHEETS
+    // ==========================================
+
     const exists =
       await checkInvoiceInGoogleSheets(
         invoice
       );
 
 
-    // ========================================
-    // FACTURA YA UTILIZADA
-    // ========================================
+    console.log(
+      "RESULTADO:",
+      exists
+    );
 
-    if (exists) {
+
+    // ==========================================
+    // FACTURA DUPLICADA
+    // ==========================================
+
+    if (exists === true) {
+
+      console.log(
+        "🚫 FACTURA DUPLICADA"
+      );
+
 
       setValidationState(
         "error",
         "Esta factura ya participó anteriormente."
       );
+
+
+      // MUY IMPORTANTE:
+      // NO crear participante
+      // NO pasar a la ruleta
+      // NO ejecutar transición
+
+      currentParticipant = null;
+
 
       validateBtn.disabled = false;
 
@@ -458,13 +599,21 @@ async function validateData() {
     }
 
 
-    // ========================================
+    // ==========================================
     // FACTURA DISPONIBLE
-    // ========================================
+    // ==========================================
+
+    console.log(
+      "✅ FACTURA DISPONIBLE"
+    );
+
 
     currentParticipant = {
-      invoice,
-      regional
+
+      invoice: invoice,
+
+      regional: regional
+
     };
 
 
@@ -493,7 +642,13 @@ async function validateData() {
 
   } catch (error) {
 
-    console.error(error);
+    console.error(
+      "ERROR VALIDANDO FACTURA:",
+      error
+    );
+
+
+    currentParticipant = null;
 
 
     setValidationState(
@@ -505,6 +660,7 @@ async function validateData() {
     validateBtn.disabled = false;
 
   }
+
 }
 
 
@@ -1156,60 +1312,15 @@ async function spinWheel() {
 
 
   // ==========================================
-  // COMPROBAR NUEVAMENTE LA FACTURA
+  // AHORA SÍ: GIRAR
+  // La factura ya fue validada al presionar
+  // "Continuar", así que no volvemos a
+  // consultar Google Sheets aquí.
   // ==========================================
 
   spinBtn.disabled = true;
-
-  const invoice =
-    currentParticipant.invoice;
-
-
-  try {
-
-    const exists =
-      await checkInvoiceInGoogleSheets(
-        invoice
-      );
-
-
-    if (exists) {
-
-      alert(
-        "Esta factura ya fue utilizada."
-      );
-
-
-      resetExperience();
-
-      return;
-    }
-
-
-  } catch (error) {
-
-    console.error(error);
-
-
-    alert(
-      "No se pudo verificar la factura. No se realizará el giro."
-    );
-
-
-    spinBtn.disabled = false;
-
-    return;
-  }
-
-
-  // ==========================================
-  // AHORA SÍ: GIRAR
-  // ==========================================
-
   spinning = true;
-
   stopIdleSpin();
-
   wheelStage.classList.add(
     "spinning"
   );
@@ -1231,7 +1342,6 @@ async function spinWheel() {
     360 /
     activePrizes.length;
 
-
   const targetCenter =
     winnerIndex *
       segmentAngle +
@@ -1244,13 +1354,9 @@ async function spinWheel() {
 
   const currentMod =
     (
-      (
-        currentRotation %
-        360
-      ) +
+      (currentRotation % 360) +
       360
-    ) %
-    360;
+    ) % 360;
 
 
   const desiredMod =
@@ -1273,18 +1379,13 @@ async function spinWheel() {
 
   const totalTurns = 9;
 
-
   const finalRotation =
     currentRotation +
-    (
-      360 *
-      totalTurns
-    ) +
+    360 * totalTurns +
     delta;
 
 
   const duration = 5600;
-
 
   playTickSequence(
     duration
@@ -1300,13 +1401,11 @@ async function spinWheel() {
     const elapsed =
       now - startTime;
 
-
     const progress =
       Math.min(
         elapsed / duration,
         1
       );
-
 
     const eased =
       1 -
@@ -1314,7 +1413,6 @@ async function spinWheel() {
         1 - progress,
         4
       );
-
 
     currentRotation =
       startRotation +
@@ -1324,10 +1422,8 @@ async function spinWheel() {
       ) *
       eased;
 
-
     wheelFrame.style.transform =
       `rotate(${currentRotation}deg)`;
-
 
     if (progress < 1) {
 
@@ -1339,22 +1435,17 @@ async function spinWheel() {
       return;
     }
 
-
     spinFrame = null;
-
 
     currentRotation =
       finalRotation;
 
-
     wheelFrame.style.transform =
       `rotate(${currentRotation}deg)`;
-
 
     finishSpin(
       winnerIndex
     );
-
   }
 
 
@@ -1473,9 +1564,7 @@ function finishSpin(
   sendToGoogleSheets(
     record
   );
-
-
-  // -----------------------------
+// -----------------------------
   // MOSTRAR RESULTADO
   // -----------------------------
 
