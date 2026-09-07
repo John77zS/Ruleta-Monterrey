@@ -280,6 +280,43 @@ button, input, select { font: inherit; }
   font-weight: 700;
 }
 
+.input-shell select {
+  width: 100%;
+  min-width: 0;
+  padding: 14px 42px 14px 12px;
+  border: 0;
+  outline: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: #09090b;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.input-shell:has(select)::after {
+  content: "⌄";
+  position: absolute;
+  right: 14px;
+  color: #bdbdc2;
+  font-size: 20px;
+  pointer-events: none;
+}
+
+.input-shell:has(select) {
+  position: relative;
+}
+
+.input-shell select option {
+  background: #111114;
+  color: #fff;
+}
+
+.input-shell select:focus {
+  outline: 0;
+}
+
 .form-control {
   width: 100%;
   min-width: 0;
@@ -755,12 +792,38 @@ select.form-control option { background: #111114; color: white; }
 }
 .confetti {
   position: absolute;
-  top: -8%;
-  width: 9px;
-  height: 18px;
-  animation: confettiFall linear forwards;
+  top: -30px;
+  display: block;
+  pointer-events: none;
+  border-radius: 2px;
+  animation-name: confettiFall;
+  animation-timing-function: ease-in;
+  animation-fill-mode: forwards;
 }
 
+@keyframes confettiFall {
+
+  0% {
+    opacity: 1;
+    transform:
+      translate3d(0, 0, 0)
+      rotate(0deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform:
+      translate3d(
+        var(--drift),
+        110vh,
+        0
+      )
+      rotate(
+        var(--rotation)
+      );
+  }
+
+}
 /* FOOTER */
 .footer {
   width: min(1420px, calc(100% - 60px));

@@ -1,35 +1,21 @@
-MONTERREY - RULETA SOLO FACTURA
-================================
+RULETA MONTERREY - VERSION REGIONALES
 
-Se mantienen:
-- La misma ruleta visual.
-- Efectos, luces, puntero, confeti y giro.
-- Google Sheets.
-- reporte.html local.
+Incluye:
+- 6 regionales: La Paz, Potosi, Santa Cruz, Sucre, Tarija y Trinidad.
+- Premios configurables por regional.
+- Segmento "Siga participando" sin premio.
+- Movimiento lento de la ruleta mientras esta inactiva.
+- Registro local y envio a Google Sheets.
+- Reporte local con regional.
 
-Se eliminaron por completo:
-- Nombre
-- Celular
-- Sucursal
+GOOGLE SHEETS
+1. Crea una pestaña llamada Participaciones.
+2. Usa columnas: Fecha | Hora | Regional | Factura | Premio.
+3. Abre apps-script-google-sheets.gs y reemplaza PEGA_AQUI_TU_SHEET_ID.
+4. Despliega como aplicacion web y selecciona acceso: Cualquier usuario.
+5. Mantiene el mismo URL de Apps Script configurado en script.js.
 
-DATOS GUARDADOS:
-- Fecha
-- Hora
-- Factura
-- Premio
-
-GOOGLE SHEETS:
-La hoja "Participaciones" debe tener:
-A1: Fecha
-B1: Hora
-C1: Factura
-D1: Premio
-
-Apps Script:
-Usa el archivo apps-script-google-sheets.gs.
-IMPORTANTE: reemplaza PEGA_AQUI_TU_SHEET_ID por el ID que ya estabas usando.
-
-Después de editar Apps Script:
-Implementar > Administrar implementaciones > Editar > Nueva versión > Implementar.
-
-La URL de Apps Script ya está incluida en script.js.
+IMPORTANTE
+- Las listas de premios incluidas son ejemplos editables. Reemplazalas por los premios reales de cada regional en prizesByRegional dentro de script.js.
+- Los SVG incluidos son archivos de respaldo para que el proyecto abra por si solo. Si ya tienes tus logos oficiales, reemplaza estos tres SVG por tus archivos originales.
+- La validacion duplicada local evita repetir una factura en el mismo navegador. Google Sheets tambien rechaza duplicados al recibir el registro, pero para bloqueo central antes del giro se recomienda despues agregar una consulta de disponibilidad al servidor.

@@ -1,13 +1,76 @@
-const prizes = [
-  "Gorra Monterrey",
-  "Polera Monterrey",
-  "Tomatodo",
-  "Lapicero",
-  "Cuaderno",
-  "Mochila",
-  "Agenda",
-  "Chanchito"
-];
+
+const prizesByRegional = {
+  "La Paz": [
+    "Gorra",
+    "Tomatodo",
+    "Bolsa ecologica",
+    "Mochila",
+    "Alcancia",
+    "Llavero",
+    "Boligrafo",
+    "Siga participando"
+  ],
+
+  "Potosí": [
+    "Gorra",
+    "Tomatodo",
+    "Bolsa ecologica",
+    "Mochila",
+    "Alcancia",
+    "Llavero",
+    "Boligrafo",
+    "Siga participando"
+  ],
+
+  "Santa Cruz": [
+    "Gorra",
+    "Tomatodo",
+    "Bolsa ecologica",
+    "Mochila",
+    "Alcancia",
+    "Llavero",
+    "Boligrafo",
+    "Siga participando"
+  ],
+
+  "Sucre": [
+    "Gorra",
+    "Tomatodo",
+    "Bolsa ecologica",
+    "Mochila",
+    "Alcancia",
+    "Llavero",
+    "Boligrafo",
+    "Siga participando"
+  ],
+
+  "Tarija": [
+    "Gorra",
+    "Tomatodo",
+    "Bolsa ecologica",
+    "Mochila",
+    "Alcancia",
+    "Llavero",
+    "Boligrafo",
+    "Siga participando"
+  ],
+
+  "Trinidad": [
+    "Gorra",
+    "Tomatodo",
+    "Bolsa ecologica",
+    "Mochila",
+    "Alcancia",
+    "Llavero",
+    "Boligrafo",
+    "Siga participando"
+  ]
+};
+
+
+// =============================
+// COLORES
+// =============================
 
 const colors = [
   "#e30613",
@@ -17,11 +80,24 @@ const colors = [
   "#e30613",
   "#17171a",
   "#a9040d",
-  "#252529"
+  "#252529",
+  "#17171a"
 ];
 
-const STORAGE_KEY = "monterrey-participaciones-v3";
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx5R8Aqr5p5mUTfyTSpnBamzIeB2BI9nKknQcdxcvG069OyZwAMLi4WPb29Q6yDUMGu/exec";
+
+// =============================
+// CONFIGURACIÓN
+// =============================
+
+const STORAGE_KEY = "monterrey-participaciones-v4";
+
+const GOOGLE_SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbxzxp_GcRV6n-MGyWnutvyUA1e0Gs-5w6EwhgxcWglZoHmuCfRMhGzNA4ycXS-y8Mh7cA/exec";
+
+
+// =============================
+// ELEMENTOS DEL DOM
+// =============================
 
 const screenInvoice = document.getElementById("screenInvoice");
 const screenWheel = document.getElementById("screenWheel");
@@ -31,333 +107,1661 @@ const invoiceInput = document.getElementById("invoice");
 const validateBtn = document.getElementById("validateBtn");
 const validationCard = document.getElementById("validationCard");
 const statusText = document.getElementById("statusText");
+const regionalSelect = document.getElementById("regional");
 
 const invoiceDisplay = document.getElementById("invoiceDisplay");
 
 const canvas = document.getElementById("wheel");
 const ctx = canvas.getContext("2d");
+
 const wheelStage = document.getElementById("wheelStage");
+const wheelFrame = document.getElementById("wheelFrame");
+
 const bulbRing = document.getElementById("bulbRing");
 const spinBtn = document.getElementById("spinBtn");
 
 const resultModal = document.getElementById("resultModal");
 const prizeName = document.getElementById("prizeName");
 const resultInvoice = document.getElementById("resultInvoice");
+const resultRegional = document.getElementById("resultRegional");
+
+const resultTitle = document.getElementById("resultTitle");
+const resultMessage = document.getElementById("resultMessage");
+const prizeLabel = document.getElementById("prizeLabel");
+
 const finishBtn = document.getElementById("finishBtn");
 const confettiLayer = document.getElementById("confettiLayer");
 
+
+// =============================
+// ESTADO
+// =============================
+
 let currentParticipant = null;
+
+let activePrizes = prizesByRegional["La Paz"];
+
 let currentRotation = 0;
+
 let spinning = false;
+
+let idleFrame = null;
+let spinFrame = null;
+
 let tickTimer = null;
 
-function getParticipations() {
-  return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+let lastIdleTime = 0;
+
+
+// =============================
+// VELOCIDADES
+// =============================
+
+// Grados por segundo durante la espera
+const IDLE_SPEED = 360 / 32;
+
+
+// =============================
+// GIRO IDLE
+// =============================
+
+function startIdleSpin() {
+
+  // No iniciar si ya está girando
+  // o si ya existe una animación idle
+  if (spinning || idleFrame) {
+    return;
+  }
+
+  lastIdleTime = performance.now();
+
+  function animate(now) {
+
+    // Si comenzó el giro principal,
+    // detenemos inmediatamente el idle.
+    if (spinning) {
+      idleFrame = null;
+      return;
+    }
+
+    const elapsed = now - lastIdleTime;
+
+    lastIdleTime = now;
+
+    currentRotation += IDLE_SPEED * (elapsed / 1000);
+
+    wheelFrame.style.transform =
+      `rotate(${currentRotation}deg)`;
+
+    idleFrame = requestAnimationFrame(animate);
+  }
+
+  idleFrame = requestAnimationFrame(animate);
 }
+
+
+// =============================
+// DETENER GIRO IDLE
+// =============================
+
+function stopIdleSpin() {
+
+  if (idleFrame) {
+
+    cancelAnimationFrame(idleFrame);
+
+    idleFrame = null;
+  }
+}
+
+
+// =============================
+// LOCAL STORAGE
+// =============================
+
+function getParticipations() {
+
+  try {
+
+    return JSON.parse(
+      localStorage.getItem(STORAGE_KEY) || "[]"
+    );
+
+  } catch (error) {
+
+    console.error(
+      "Error leyendo participaciones:",
+      error
+    );
+
+    return [];
+  }
+}
+
 
 function saveParticipation(data) {
+
   const list = getParticipations();
+
   list.push(data);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify(list)
+  );
 }
 
+
+function invoiceAlreadyUsed(invoice) {
+
+  return getParticipations().some(
+    item =>
+      String(item.invoice) === String(invoice)
+  );
+}
+
+
+// =============================
+// GOOGLE SHEETS
+// =============================
+
 function sendToGoogleSheets(record) {
+
   const payload = {
+
     fecha: record.date,
+
     hora: record.time,
+
+    regional: record.regional,
+
     factura: record.invoice,
+
     premio: record.prize
+
   };
 
-  fetch(GOOGLE_SCRIPT_URL, {
-    method: "POST",
-    mode: "no-cors",
-    headers: {
-      "Content-Type": "text/plain;charset=utf-8"
-    },
-    body: JSON.stringify(payload)
-  }).catch(error => {
-    console.error("No se pudo enviar la participación a Google Sheets:", error);
+  fetch(
+    GOOGLE_SCRIPT_URL,
+    {
+      method: "POST",
+
+      mode: "no-cors",
+
+      headers: {
+        "Content-Type":
+          "text/plain;charset=utf-8"
+      },
+
+      body: JSON.stringify(payload)
+    }
+  )
+  .catch(error => {
+
+    console.error(
+      "No se pudo enviar la participación a Google Sheets:",
+      error
+    );
+
   });
 }
 
-function invoiceAlreadyUsed(invoice) {
-  return getParticipations().some(item => item.invoice === invoice);
-}
+
+// =============================
+// ESTADO DE VALIDACIÓN
+// =============================
 
 function setValidationState(type, message) {
-  validationCard.classList.remove("error", "success");
-  if (type) validationCard.classList.add(type);
+
+  validationCard.classList.remove(
+    "error",
+    "success"
+  );
+
+  if (type) {
+
+    validationCard.classList.add(type);
+
+  }
+
   statusText.textContent = message;
 }
 
+
+// =============================
+// VALIDAR FACTURA
+// =============================
+
 function validateData() {
-  const invoice = invoiceInput.value.trim();
+
+  const regional =
+    regionalSelect.value;
+
+  const invoice =
+    invoiceInput.value.trim();
+
+
+  // -----------------------------
+  // VALIDAR REGIONAL
+  // -----------------------------
+
+  if (!regional) {
+
+    setValidationState(
+      "error",
+      "Selecciona una regional para continuar."
+    );
+
+    regionalSelect.focus();
+
+    return;
+  }
+
+
+  // -----------------------------
+  // VALIDAR FACTURA
+  // -----------------------------
 
   if (!invoice) {
-    setValidationState("error", "Ingresa tu número de factura para continuar.");
+
+    setValidationState(
+      "error",
+      "Ingresa tu número de factura para continuar."
+    );
+
+    invoiceInput.focus();
+
     return;
   }
+
+
+  // -----------------------------
+  // VALIDAR FACTURA REPETIDA
+  // -----------------------------
 
   if (invoiceAlreadyUsed(invoice)) {
-    setValidationState("error", "Esta factura ya participó anteriormente.");
+
+    setValidationState(
+      "error",
+      "Esta factura ya participó anteriormente."
+    );
+
+    invoiceInput.focus();
+
     return;
   }
 
-  currentParticipant = { invoice };
 
-  setValidationState("success", "Factura válida. Preparando tu participación...");
+  // -----------------------------
+  // GUARDAR PARTICIPANTE ACTUAL
+  // -----------------------------
+
+  currentParticipant = {
+
+    invoice: invoice,
+
+    regional: regional
+
+  };
+
+
+  // -----------------------------
+  // CARGAR PREMIOS DE LA REGIONAL
+  // -----------------------------
+
+  activePrizes =
+    prizesByRegional[regional] ||
+    prizesByRegional["La Paz"];
+
+
+  // -----------------------------
+  // DIBUJAR RULETA
+  // -----------------------------
+
+  drawWheel();
+
+
+  // -----------------------------
+  // MENSAJE
+  // -----------------------------
+
+  setValidationState(
+    "success",
+    "Factura válida. Preparando tu participación..."
+  );
+
+
   validateBtn.disabled = true;
 
-  setTimeout(showSuccessTransition, 600);
+
+  // -----------------------------
+  // DETENER CUALQUIER GIRO
+  // -----------------------------
+
+  stopIdleSpin();
+
+
+  // -----------------------------
+  // TRANSICIÓN
+  // -----------------------------
+
+  setTimeout(
+    showSuccessTransition,
+    600
+  );
 }
 
+
+// =============================
+// TRANSICIÓN A RULETA
+// =============================
+
 function showSuccessTransition() {
-  successTransition.classList.remove("hidden");
+
+  successTransition.classList.remove(
+    "hidden"
+  );
+
 
   setTimeout(() => {
-    screenInvoice.classList.add("exit-left");
+
+    screenInvoice.classList.add(
+      "exit-left"
+    );
+
 
     setTimeout(() => {
-      screenInvoice.classList.remove("active", "exit-left");
 
-      invoiceDisplay.textContent = currentParticipant.invoice;
+      screenInvoice.classList.remove(
+        "active",
+        "exit-left"
+      );
 
-      screenWheel.classList.add("active", "enter-right");
+
+      invoiceDisplay.textContent =
+        currentParticipant.invoice;
+
+
+      screenWheel.classList.add(
+        "active",
+        "enter-right"
+      );
+
+
+      // Iniciar giro lento
+      startIdleSpin();
+
 
       setTimeout(() => {
-        screenWheel.classList.remove("enter-right");
-        successTransition.classList.add("hidden");
+
+        screenWheel.classList.remove(
+          "enter-right"
+        );
+
+        successTransition.classList.add(
+          "hidden"
+        );
+
       }, 720);
+
     }, 420);
+
   }, 900);
 }
 
-/* MISMO DIBUJO DE RULETA */
+
+// =============================
+// DIBUJAR RULETA
+// =============================
+
 function drawWheel() {
-  const size = canvas.width;
-  const center = size / 2;
-  const radius = center - 14;
-  const arc = Math.PI * 2 / prizes.length;
 
-  ctx.clearRect(0, 0, size, size);
+  const size =
+    canvas.width;
+
+  const center =
+    size / 2;
+
+  const radius =
+    center - 14;
+
+  const arc =
+    Math.PI * 2 /
+    activePrizes.length;
+
+
+  ctx.clearRect(
+    0,
+    0,
+    size,
+    size
+  );
+
+
   ctx.save();
-  ctx.translate(center, center);
 
-  for (let i = 0; i < prizes.length; i++) {
-    const start = -Math.PI / 2 + i * arc;
-    const end = start + arc;
+  ctx.translate(
+    center,
+    center
+  );
+
+
+  for (
+    let i = 0;
+    i < activePrizes.length;
+    i++
+  ) {
+
+    const start =
+      -Math.PI / 2 +
+      i * arc;
+
+    const end =
+      start + arc;
+
+
+    // -----------------------------
+    // SEGMENTO
+    // -----------------------------
 
     ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.arc(0, 0, radius, start, end);
+
+    ctx.moveTo(
+      0,
+      0
+    );
+
+    ctx.arc(
+      0,
+      0,
+      radius,
+      start,
+      end
+    );
+
     ctx.closePath();
 
-    const gradient = ctx.createRadialGradient(0, 0, 90, 0, 0, radius);
-    gradient.addColorStop(0, i % 2 === 0 ? "#830309" : "#0f0f11");
-    gradient.addColorStop(.58, colors[i]);
-    gradient.addColorStop(1, i % 2 === 0 ? "#ff1824" : "#303035");
 
-    ctx.fillStyle = gradient;
+    // -----------------------------
+    // GRADIENTE
+    // -----------------------------
+
+    const gradient =
+      ctx.createRadialGradient(
+        0,
+        0,
+        90,
+        0,
+        0,
+        radius
+      );
+
+
+    gradient.addColorStop(
+      0,
+      i % 2 === 0
+        ? "#830309"
+        : "#0f0f11"
+    );
+
+
+    gradient.addColorStop(
+      0.58,
+      colors[i % colors.length]
+    );
+
+
+    gradient.addColorStop(
+      1,
+      i % 2 === 0
+        ? "#ff1824"
+        : "#303035"
+    );
+
+
+    ctx.fillStyle =
+      gradient;
+
     ctx.fill();
 
-    ctx.strokeStyle = "rgba(255,255,255,.42)";
+
+    // -----------------------------
+    // BORDE
+    // -----------------------------
+
+    ctx.strokeStyle =
+      "rgba(255,255,255,.42)";
+
     ctx.lineWidth = 2;
+
     ctx.stroke();
 
+
+    // -----------------------------
+    // TEXTO
+    // -----------------------------
+
     ctx.save();
-    ctx.rotate(start + arc / 2);
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = "#fff";
-    ctx.shadowColor = "rgba(0,0,0,.6)";
+
+    ctx.rotate(
+      start + arc / 2
+    );
+
+    ctx.textAlign =
+      "right";
+
+    ctx.textBaseline =
+      "middle";
+
+    ctx.fillStyle =
+      "#fff";
+
+    ctx.shadowColor =
+      "rgba(0,0,0,.6)";
+
     ctx.shadowBlur = 5;
-    ctx.font = "800 22px Arial";
 
-    const words = prizes[i].toUpperCase().split(" ");
-    const split = Math.ceil(words.length / 2);
-    const line1 = words.slice(0, split).join(" ");
-    const line2 = words.slice(split).join(" ");
+    ctx.font =
+      "800 20px Arial";
 
-    ctx.fillText(line1, radius - 58, -13);
-    if (line2) ctx.fillText(line2, radius - 58, 13);
+
+    const words =
+      activePrizes[i]
+        .toUpperCase()
+        .split(" ");
+
+
+    const split =
+      Math.ceil(
+        words.length / 2
+      );
+
+
+    const line1 =
+      words
+        .slice(0, split)
+        .join(" ");
+
+
+    const line2 =
+      words
+        .slice(split)
+        .join(" ");
+
+
+    ctx.fillText(
+      line1,
+      radius - 58,
+      -13
+    );
+
+
+    if (line2) {
+
+      ctx.fillText(
+        line2,
+        radius - 58,
+        13
+      );
+
+    }
+
 
     ctx.restore();
   }
 
+
+  // -----------------------------
+  // BORDE EXTERIOR
+  // -----------------------------
+
   ctx.beginPath();
-  ctx.arc(0, 0, radius - 3, 0, Math.PI * 2);
-  ctx.strokeStyle = "rgba(255,255,255,.14)";
+
+  ctx.arc(
+    0,
+    0,
+    radius - 3,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.strokeStyle =
+    "rgba(255,255,255,.14)";
+
   ctx.lineWidth = 7;
+
   ctx.stroke();
+
 
   ctx.restore();
 }
 
+
+// =============================
+// BOMBILLAS
+// =============================
+
 function buildBulbs() {
+
   const total = 28;
+
   bulbRing.innerHTML = "";
 
-  for (let i = 0; i < total; i++) {
-    const bulb = document.createElement("i");
-    bulb.className = "bulb";
 
-    const angle = i * (360 / total);
+  for (
+    let i = 0;
+    i < total;
+    i++
+  ) {
+
+    const bulb =
+      document.createElement("i");
+
+
+    bulb.className =
+      "bulb";
+
+
+    const angle =
+      i * (360 / total);
+
+
     const radius = 49;
 
+
     bulb.style.left =
-      `${50 + radius * Math.cos((angle - 90) * Math.PI / 180)}%`;
+      `${50 +
+        radius *
+        Math.cos(
+          (angle - 90) *
+          Math.PI / 180
+        )}%`;
+
 
     bulb.style.top =
-      `${50 + radius * Math.sin((angle - 90) * Math.PI / 180)}%`;
+      `${50 +
+        radius *
+        Math.sin(
+          (angle - 90) *
+          Math.PI / 180
+        )}%`;
 
-    bulbRing.appendChild(bulb);
+
+    bulbRing.appendChild(
+      bulb
+    );
   }
 }
+
+
+// =============================
+// PARTÍCULAS
+// =============================
 
 function createParticles() {
-  const particles = document.getElementById("particles");
 
-  for (let i = 0; i < 34; i++) {
-    const dot = document.createElement("i");
-    dot.style.left = Math.random() * 100 + "%";
-    dot.style.animationDuration = (8 + Math.random() * 11) + "s";
-    dot.style.animationDelay = (-Math.random() * 15) + "s";
-    dot.style.opacity = (.07 + Math.random() * .25).toFixed(2);
-    particles.appendChild(dot);
-  }
-}
+  const particles =
+    document.getElementById(
+      "particles"
+    );
 
-function playTickSequence(duration = 5500) {
-  let audioCtx;
 
-  try {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  } catch {
+  if (!particles) {
     return;
   }
 
-  const start = performance.now();
+
+  particles.innerHTML = "";
+
+
+  for (
+    let i = 0;
+    i < 34;
+    i++
+  ) {
+
+    const dot =
+      document.createElement("i");
+
+
+    dot.style.left =
+      Math.random() *
+      100 +
+      "%";
+
+
+    dot.style.animationDuration =
+      (8 +
+        Math.random() * 11) +
+      "s";
+
+
+    dot.style.animationDelay =
+      (-Math.random() * 15) +
+      "s";
+
+
+    dot.style.opacity =
+      (
+        0.07 +
+        Math.random() * 0.25
+      ).toFixed(2);
+
+
+    particles.appendChild(
+      dot
+    );
+  }
+}
+
+
+// =============================
+// SONIDO DE LA RULETA
+// =============================
+
+function playTickSequence(
+  duration = 5600
+) {
+
+  let audioCtx;
+
+
+  try {
+
+    audioCtx =
+      new (
+        window.AudioContext ||
+        window.webkitAudioContext
+      )();
+
+  } catch {
+
+    return;
+  }
+
+
+  const start =
+    performance.now();
+
 
   function tick() {
-    if (!spinning) return;
 
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
+    if (!spinning) {
+      return;
+    }
 
-    osc.type = "square";
-    osc.frequency.value = 760;
 
-    gain.gain.setValueAtTime(.025, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime + .035);
+    const osc =
+      audioCtx.createOscillator();
 
-    osc.connect(gain).connect(audioCtx.destination);
+
+    const gain =
+      audioCtx.createGain();
+
+
+    osc.type =
+      "square";
+
+
+    osc.frequency.value =
+      760;
+
+
+    gain.gain.setValueAtTime(
+      0.025,
+      audioCtx.currentTime
+    );
+
+
+    gain.gain.exponentialRampToValueAtTime(
+      0.001,
+      audioCtx.currentTime + 0.035
+    );
+
+
+    osc
+      .connect(gain)
+      .connect(audioCtx.destination);
+
+
     osc.start();
-    osc.stop(audioCtx.currentTime + .04);
 
-    const elapsed = performance.now() - start;
-    const progress = Math.min(1, elapsed / duration);
-    const delay = 55 + Math.pow(progress, 2.7) * 430;
 
-    if (progress < .93) {
-      tickTimer = setTimeout(tick, delay);
+    osc.stop(
+      audioCtx.currentTime + 0.04
+    );
+
+
+    const progress =
+      Math.min(
+        1,
+        (
+          performance.now() -
+          start
+        ) / duration
+      );
+
+
+    const delay =
+      55 +
+      Math.pow(
+        progress,
+        2.7
+      ) *
+      430;
+
+
+    if (progress < 0.93) {
+
+      tickTimer =
+        setTimeout(
+          tick,
+          delay
+        );
+
     }
   }
+
 
   tick();
 }
 
-function spinWheel() {
-  if (spinning || !currentParticipant) return;
 
-  spinning = true;
-  spinBtn.disabled = true;
-  wheelStage.classList.add("spinning");
+// =============================
+// ELEGIR PREMIO POR PESO
+// =============================
 
-  const winnerIndex = Math.floor(Math.random() * prizes.length);
+function chooseWinnerIndex() {
 
-  const segmentAngle = 360 / prizes.length;
-  const targetCenter = winnerIndex * segmentAngle + segmentAngle / 2;
-  const currentMod = ((currentRotation % 360) + 360) % 360;
-  const desiredMod = (360 - targetCenter) % 360;
-  const delta = (desiredMod - currentMod + 360) % 360;
+  // ==========================================
+  // AQUÍ CONTROLAS LAS PROBABILIDADES
+  // ==========================================
+  //
+  // Todos en 1 = misma probabilidad.
+  //
+  // Ejemplo:
+  //
+  // "Gorra": 2
+  //
+  // significa que la Gorra tendrá el doble
+  // de probabilidad que un premio con peso 1.
+  //
+  // ==========================================
 
-  currentRotation += (360 * 9) + delta;
+  const prizeProbabilities = {
 
-  playTickSequence(5600);
-  canvas.style.transform = `rotate(${currentRotation}deg)`;
+    "Gorra": 1,
 
-  setTimeout(() => {
-    spinning = false;
-    clearTimeout(tickTimer);
-    wheelStage.classList.remove("spinning");
+    "Tomatodo": 1,
 
-    const winner = prizes[winnerIndex];
-    const now = new Date();
+    "Bolsa ecologica": 1,
 
-    const record = {
-      id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
-      invoice: currentParticipant.invoice,
-      prize: winner,
-      timestamp: now.toISOString(),
-      date: now.toLocaleDateString("es-BO"),
-      time: now.toLocaleTimeString("es-BO")
-    };
+    "Mochila": 1,
 
-    saveParticipation(record);
-    sendToGoogleSheets(record);
+    "Alcancia": 1,
 
-    prizeName.textContent = winner;
-    resultInvoice.textContent = record.invoice;
+    "Llavero": 1,
 
-    createConfetti();
-    resultModal.classList.remove("hidden");
-  }, 5750);
+    "Boligrafo": 1,
+
+    "Siga participando": 1
+
+  };
+
+
+  // -----------------------------
+  // CALCULAR PESO TOTAL
+  // -----------------------------
+
+  const totalWeight =
+    activePrizes.reduce(
+      (total, prize) => {
+
+        return total +
+          (
+            prizeProbabilities[prize] ||
+            0
+          );
+
+      },
+      0
+    );
+
+
+  // Si por algún motivo todos
+  // tienen peso 0, usamos elección
+  // completamente aleatoria.
+
+  if (totalWeight <= 0) {
+
+    return Math.floor(
+      Math.random() *
+      activePrizes.length
+    );
+  }
+
+
+  // -----------------------------
+  // NÚMERO ALEATORIO
+  // -----------------------------
+
+  let random =
+    Math.random() *
+    totalWeight;
+
+
+  // -----------------------------
+  // ENCONTRAR PREMIO
+  // -----------------------------
+
+  for (
+    let i = 0;
+    i < activePrizes.length;
+    i++
+  ) {
+
+    const prize =
+      activePrizes[i];
+
+
+    const weight =
+      prizeProbabilities[prize] ||
+      0;
+
+
+    random -= weight;
+
+
+    if (random < 0) {
+
+      return i;
+    }
+  }
+
+
+  // Seguridad
+  return activePrizes.length - 1;
 }
 
+
+// =============================
+// GIRO PRINCIPAL
+// =============================
+
+function spinWheel() {
+
+  // -----------------------------
+  // SEGURIDAD
+  // -----------------------------
+
+  if (
+    spinning ||
+    !currentParticipant ||
+    !activePrizes.length
+  ) {
+
+    return;
+  }
+
+
+  // -----------------------------
+  // INICIAR GIRO
+  // -----------------------------
+
+  spinning = true;
+
+
+  // Detener idle
+  stopIdleSpin();
+
+
+  // Deshabilitar botón
+  spinBtn.disabled = true;
+
+
+  // Efecto visual
+  wheelStage.classList.add(
+    "spinning"
+  );
+
+
+  // -----------------------------
+  // ELEGIR PREMIO
+  // -----------------------------
+
+  const winnerIndex =
+    chooseWinnerIndex();
+
+
+  // -----------------------------
+  // ÁNGULO DE CADA SEGMENTO
+  // -----------------------------
+
+  const segmentAngle =
+    360 /
+    activePrizes.length;
+
+
+  // Centro del segmento ganador
+
+  const targetCenter =
+    winnerIndex *
+      segmentAngle +
+    segmentAngle / 2;
+
+
+  // -----------------------------
+  // ROTACIÓN ACTUAL
+  // -----------------------------
+
+  const startRotation =
+    currentRotation;
+
+
+  const currentMod =
+    (
+      (
+        currentRotation %
+        360
+      ) +
+      360
+    ) %
+    360;
+
+
+  // -----------------------------
+  // ÁNGULO FINAL
+  // -----------------------------
+
+  const desiredMod =
+    (
+      360 -
+      targetCenter +
+      360
+    ) % 360;
+
+
+  let delta =
+    desiredMod -
+    currentMod;
+
+
+  if (delta < 0) {
+    delta += 360;
+  }
+
+
+  // -----------------------------
+  // NÚMERO DE VUELTAS
+  // -----------------------------
+
+  const totalTurns = 9;
+
+  const finalRotation =
+    currentRotation +
+    (
+      360 *
+      totalTurns
+    ) +
+    delta;
+
+
+  // -----------------------------
+  // DURACIÓN
+  // -----------------------------
+
+  const duration = 5600;
+
+
+  // -----------------------------
+  // SONIDO
+  // -----------------------------
+
+  playTickSequence(
+    duration
+  );
+
+
+  // -----------------------------
+  // ANIMACIÓN
+  // -----------------------------
+
+  const startTime =
+    performance.now();
+
+
+  function animateSpin(now) {
+
+    const elapsed =
+      now - startTime;
+
+
+    const progress =
+      Math.min(
+        elapsed / duration,
+        1
+      );
+
+
+    // Easing:
+    // comienza rápido y termina suave.
+
+    const eased =
+      1 -
+      Math.pow(
+        1 - progress,
+        4
+      );
+
+
+    currentRotation =
+      startRotation +
+      (
+        finalRotation -
+        startRotation
+      ) *
+      eased;
+
+
+    wheelFrame.style.transform =
+      `rotate(${currentRotation}deg)`;
+
+
+    if (progress < 1) {
+
+      spinFrame =
+        requestAnimationFrame(
+          animateSpin
+        );
+
+      return;
+    }
+
+
+    // -----------------------------
+    // TERMINÓ EL GIRO
+    // -----------------------------
+
+    spinFrame = null;
+
+
+    currentRotation =
+      finalRotation;
+
+
+    wheelFrame.style.transform =
+      `rotate(${currentRotation}deg)`;
+
+
+    finishSpin(
+      winnerIndex
+    );
+  }
+
+
+  spinFrame =
+    requestAnimationFrame(
+      animateSpin
+    );
+}
+
+
+// =============================
+// FINALIZAR GIRO
+// =============================
+
+function finishSpin(
+  winnerIndex
+) {
+
+  spinning = false;
+
+
+  // Cancelar animación por seguridad
+
+  if (spinFrame) {
+
+    cancelAnimationFrame(
+      spinFrame
+    );
+
+    spinFrame = null;
+  }
+
+
+  // Detener sonido
+
+  clearTimeout(
+    tickTimer
+  );
+
+
+  // Quitar efecto visual
+
+  wheelStage.classList.remove(
+    "spinning"
+  );
+
+
+  // -----------------------------
+  // OBTENER PREMIO
+  // -----------------------------
+
+  const winner =
+    activePrizes[winnerIndex];
+
+
+  // -----------------------------
+  // FECHA Y HORA
+  // -----------------------------
+
+  const now =
+    new Date();
+
+
+  // -----------------------------
+  // CREAR REGISTRO
+  // -----------------------------
+
+  const record = {
+
+    id:
+      (
+        typeof crypto !== "undefined" &&
+        crypto.randomUUID
+      )
+        ? crypto.randomUUID()
+        : String(Date.now()),
+
+    invoice:
+      currentParticipant.invoice,
+
+    regional:
+      currentParticipant.regional,
+
+    prize:
+      winner,
+
+    timestamp:
+      now.toISOString(),
+
+    date:
+      now.toLocaleDateString(
+        "es-BO"
+      ),
+
+    time:
+      now.toLocaleTimeString(
+        "es-BO"
+      )
+
+  };
+
+
+  // -----------------------------
+  // GUARDAR LOCALMENTE
+  // -----------------------------
+
+  saveParticipation(
+    record
+  );
+
+
+  // -----------------------------
+  // ENVIAR A GOOGLE SHEETS
+  // -----------------------------
+
+  sendToGoogleSheets(
+    record
+  );
+
+
+  // -----------------------------
+  // MOSTRAR RESULTADO
+  // -----------------------------
+
+  prizeName.textContent =
+    winner;
+
+
+  resultInvoice.textContent =
+    record.invoice;
+
+
+  if (resultRegional) {
+
+    resultRegional.textContent =
+      record.regional;
+  }
+
+
+  // -----------------------------
+  // SIN PREMIO
+  // -----------------------------
+
+  if (
+    winner ===
+    "Siga participando"
+  ) {
+
+    resultTitle.textContent =
+      "¡CASI!";
+
+
+    resultMessage.textContent =
+      "Esta vez no hubo premio, pero puedes seguir participando en futuras promociones.";
+
+
+    prizeLabel.textContent =
+      "RESULTADO";
+
+
+    confettiLayer.innerHTML =
+      "";
+
+  }
+
+
+  // -----------------------------
+  // PREMIO
+  // -----------------------------
+
+  else {
+
+    resultTitle.textContent =
+      "¡FELICIDADES!";
+
+
+    resultMessage.textContent =
+      "Tu compra acaba de convertirse en:";
+
+
+    prizeLabel.textContent =
+      "TU PREMIO";
+
+
+    createConfetti();
+
+  }
+
+
+  // -----------------------------
+  // MOSTRAR MODAL
+  // -----------------------------
+
+  resultModal.classList.remove(
+    "hidden"
+  );
+}
+
+
+// =============================
+// CONFETI
+// =============================
+
 function createConfetti() {
+
   confettiLayer.innerHTML = "";
 
-  const palette = ["#e30613", "#ffffff", "#9b9ba1", "#ff3843"];
+  const pieces = 120;
 
-  for (let i = 0; i < 95; i++) {
-    const piece = document.createElement("i");
+  const palette = [
+    "#e30613",
+    "#ffffff",
+    "#9b9ba1",
+    "#ff3843",
+    "#d71920",
+    "#f5f5f5"
+  ];
+
+  for (let i = 0; i < pieces; i++) {
+
+    const piece =
+      document.createElement("i");
+
     piece.className = "confetti";
-    piece.style.left = Math.random() * 100 + "%";
-    piece.style.background = palette[i % palette.length];
-    piece.style.width = (6 + Math.random() * 8) + "px";
-    piece.style.height = (8 + Math.random() * 15) + "px";
-    piece.style.animationDelay = (Math.random() * .9) + "s";
-    piece.style.animationDuration = (2.1 + Math.random() * 1.9) + "s";
-    piece.style.transform = `rotate(${Math.random() * 360}deg)`;
+
+    const startX =
+      Math.random() * 100;
+
+    const drift =
+      -250 + Math.random() * 500;
+
+    const rotation =
+      360 + Math.random() * 1080;
+
+    const duration =
+      2.2 + Math.random() * 2.2;
+
+    const delay =
+      Math.random() * 0.7;
+
+    piece.style.left =
+      startX + "%";
+
+    piece.style.background =
+      palette[
+        Math.floor(
+          Math.random() * palette.length
+        )
+      ];
+
+    piece.style.width =
+      (5 + Math.random() * 8) + "px";
+
+    piece.style.height =
+      (8 + Math.random() * 14) + "px";
+
+    piece.style.setProperty(
+      "--drift",
+      drift + "px"
+    );
+
+    piece.style.setProperty(
+      "--rotation",
+      rotation + "deg"
+    );
+
+    piece.style.animationDuration =
+      duration + "s";
+
+    piece.style.animationDelay =
+      delay + "s";
+
+    piece.style.transform =
+      `rotate(${Math.random() * 360}deg)`;
+
     confettiLayer.appendChild(piece);
   }
 }
 
+
+// =============================
+// REINICIAR EXPERIENCIA
+// =============================
+
 function resetExperience() {
-  resultModal.classList.add("hidden");
 
-  currentParticipant = null;
-  spinning = false;
+  // -----------------------------
+  // OCULTAR RESULTADO
+  // -----------------------------
 
-  invoiceInput.value = "";
-  validateBtn.disabled = false;
-  spinBtn.disabled = false;
+  resultModal.classList.add(
+    "hidden"
+  );
 
-  setValidationState("", "Ingresa tu número de factura para continuar.");
 
-  screenWheel.classList.remove("active");
-  screenInvoice.classList.add("active");
+  // -----------------------------
+  // DETENER ANIMACIONES
+  // -----------------------------
+
+  stopIdleSpin();
+
+
+  if (spinFrame) {
+
+    cancelAnimationFrame(
+      spinFrame
+    );
+
+    spinFrame = null;
+  }
+
+
+  clearTimeout(
+    tickTimer
+  );
+
+
+  // -----------------------------
+  // REINICIAR ESTADO
+  // -----------------------------
+
+  currentParticipant =
+    null;
+
+  spinning =
+    false;
+
+
+  // -----------------------------
+  // LIMPIAR FORMULARIO
+  // -----------------------------
+
+  invoiceInput.value =
+    "";
+
+
+  regionalSelect.value =
+    "";
+
+
+  validateBtn.disabled =
+    false;
+
+
+  spinBtn.disabled =
+    false;
+
+
+  // -----------------------------
+  // MENSAJE INICIAL
+  // -----------------------------
+
+  setValidationState(
+    "",
+    "Selecciona tu regional e ingresa tu número de factura para continuar."
+  );
+
+
+  // -----------------------------
+  // VOLVER A PANTALLA INICIAL
+  // -----------------------------
+
+  screenWheel.classList.remove(
+    "active"
+  );
+
+
+  screenInvoice.classList.add(
+    "active"
+  );
+
+
+  // -----------------------------
+  // REINICIAR RULETA
+  // -----------------------------
+
+  currentRotation =
+    0;
+
+
+  wheelFrame.style.transform =
+    "rotate(0deg)";
+
+
+  activePrizes =
+    prizesByRegional["La Paz"];
+
+
+  drawWheel();
+
+
+  // -----------------------------
+  // VOLVER A GIRO IDLE
+  // -----------------------------
+
+  startIdleSpin();
 }
 
-invoiceInput.addEventListener("input", () => {
-  invoiceInput.value = invoiceInput.value.replace(/\D/g, "");
-});
 
-validateBtn.addEventListener("click", validateData);
-spinBtn.addEventListener("click", spinWheel);
-finishBtn.addEventListener("click", resetExperience);
+// =============================
+// EVENTOS
+// =============================
+
+// Solo permitir números en factura
+
+invoiceInput.addEventListener(
+  "input",
+  () => {
+
+    invoiceInput.value =
+      invoiceInput.value.replace(
+        /\D/g,
+        ""
+      );
+
+  }
+);
+
+
+// Cambio de regional
+
+regionalSelect.addEventListener(
+  "change",
+  () => {
+
+    setValidationState(
+      "",
+      "Selecciona tu regional e ingresa tu número de factura para continuar."
+    );
+
+  }
+);
+
+
+// Botón validar
+
+validateBtn.addEventListener(
+  "click",
+  validateData
+);
+
+
+// Botón girar
+
+spinBtn.addEventListener(
+  "click",
+  spinWheel
+);
+
+
+// Botón finalizar
+
+finishBtn.addEventListener(
+  "click",
+  resetExperience
+);
+
+
+// =============================
+// INICIALIZACIÓN
+// =============================
 
 createParticles();
+
 buildBulbs();
+
 drawWheel();
+
+startIdleSpin();
