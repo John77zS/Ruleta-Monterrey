@@ -1,478 +1,264 @@
-// ============================================================
-// RULETA MONTERREY - GOOGLE SHEETS
-// ============================================================
-
-const SHEET_ID = "1MURkYyPyOVG4wUQUWQAjvY0X6nhaFgjTuJ9uDY9Ib8Q";
 const SHEET_NAME = "Participaciones";
 
 
-// ============================================================
-// CONEXIÓN DE PRUEBA
-// ============================================================
+// ==========================================
+// GET
+// ==========================================
 
-function doGet() {
+function doGet(e) {
 
-  return ContentService
-    .createTextOutput("OK - HOJA CONECTADA")
-    .setMimeType(ContentService.MimeType.TEXT);
+  const action =
+    e &&
+    e.parameter &&
+    e.parameter.action
+      ? e.parameter.action
+      : "";
 
+  // ------------------------------------------
+  // COMPROBAR FACTURA
+  // ------------------------------------------
+
+  if (action === "checkInvoice") {
+
+    const invoice =
+      String(
+        e.parameter.invoice || ""
+      ).trim();
+
+    if (!invoice) {
+
+      return respuesta({
+        ok: false,
+        error: "Factura no proporcionada"
+      });
+
+    }
+
+    const exists =
+      facturaExiste(invoice);
+
+    return respuesta({
+      ok: true,
+      exists: exists
+    });
+  }
+
+
+  return respuesta({
+    ok: true,
+    message: "API Ruleta Monterrey funcionando"
+  });
 }
 
 
-// ============================================================
-// RECIBIR PARTICIPACIÓN
-// ============================================================
+// ==========================================
+// POST
+// ==========================================
 
 function doPost(e) {
 
-  // Evita que dos participaciones entren al mismo tiempo
-  const lock = LockService.getScriptLock();
-
   try {
 
-    lock.waitLock(10000);
-
-
-    // --------------------------------------------------------
-    // VERIFICAR DATOS RECIBIDOS
-    // --------------------------------------------------------
-
-    if (!e || !e.postData || !e.postData.contents) {
-
-      return respuesta(
-        "ERROR: No se recibió información."
+    const data =
+      JSON.parse(
+        e.postData.contents
       );
 
-    }
-
-
-    const data = JSON.parse(
-      e.postData.contents
-    );
-
-
-    // --------------------------------------------------------
-    // OBTENER DATOS
-    // --------------------------------------------------------
-
-    const fecha = String(
-      data.fecha || ""
-    ).trim();
-
-    const hora = String(
-      data.hora || ""
-    ).trim();
-
-    const regional = String(
-      data.regional || ""
-    ).trim();
-
-    const factura = String(
-      data.factura || ""
-    ).trim();
-
-    const premio = String(
-      data.premio || ""
-    ).trim();
-
-
-    // --------------------------------------------------------
-    // VALIDACIONES
-    // --------------------------------------------------------
-
-    if (!regional) {
-
-      return respuesta(
-        "ERROR: Falta la regional."
-      );
-
-    }
-
-
-    if (!factura) {
-
-      return respuesta(
-        "ERROR: Falta la factura."
-      );
-
-    }
-
-
-    if (!premio) {
-
-      return respuesta(
-        "ERROR: Falta el premio."
-      );
-
-    }
-
-
-    // --------------------------------------------------------
-    // ABRIR GOOGLE SHEETS
-    // --------------------------------------------------------
 
     const spreadsheet =
-      SpreadsheetApp.openById(
-        SHEET_ID
-      );
+      SpreadsheetApp.getActiveSpreadsheet();
 
 
-    let sheet =
+    const sheet =
       spreadsheet.getSheetByName(
         SHEET_NAME
       );
 
 
-    // --------------------------------------------------------
-    // CREAR HOJA SI NO EXISTE
-    // --------------------------------------------------------
-
     if (!sheet) {
 
-      sheet =
-        spreadsheet.insertSheet(
-          SHEET_NAME
-        );
+      throw new Error(
+        "No existe la hoja: " +
+        SHEET_NAME
+      );
 
     }
 
 
-    // --------------------------------------------------------
-    // PREPARAR COLUMNAS
-    // --------------------------------------------------------
-
-    prepararEncabezados(sheet);
-
-
-    // --------------------------------------------------------
-    // BUSCAR FACTURA DUPLICADA
-    //
-    // Regional NO forma parte de la comparación.
-    //
-    // Es decir:
-    //
-    // Santa Cruz + factura 123
-    // y
-    // La Paz + factura 123
-    //
-    // se considera la MISMA factura.
-    // --------------------------------------------------------
-
-    const lastRow =
-      sheet.getLastRow();
+    const invoice =
+      String(
+        data.factura || ""
+      ).trim();
 
 
-    if (lastRow >= 2) {
+    if (!invoice) {
 
-      const facturas =
-        sheet
-          .getRange(
-            2,
-            4,
-            lastRow - 1,
-            1
-          )
-          .getDisplayValues();
-
-
-      const facturaDuplicada =
-        facturas.some(row => {
-
-          return String(row[0])
-            .trim()
-            === factura;
-
-        });
-
-
-      if (facturaDuplicada) {
-
-        return respuesta(
-          "DUPLICADA: Esta factura ya participó anteriormente."
-        );
-
-      }
+      return respuesta({
+        ok: false,
+        error: "Factura no proporcionada"
+      });
 
     }
 
 
-    // --------------------------------------------------------
-    // FECHA Y HORA
-    // --------------------------------------------------------
+    // ==========================================
+    // SEGURIDAD:
+    // VOLVER A COMPROBAR LA FACTURA
+    // ==========================================
 
-    const ahora =
-      new Date();
+    if (facturaExiste(invoice)) {
+
+      return respuesta({
+        ok: false,
+        duplicate: true,
+        error:
+          "Esta factura ya participó."
+      });
+
+    }
 
 
-    const fechaFinal =
-      fecha ||
+    // ==========================================
+    // DATOS
+    // ==========================================
+
+    const fecha =
+      data.fecha ||
       Utilities.formatDate(
-        ahora,
-        Session.getScriptTimeZone(),
+        new Date(),
+        "America/La_Paz",
         "dd/MM/yyyy"
       );
 
 
-    const horaFinal =
-      hora ||
+    const hora =
+      data.hora ||
       Utilities.formatDate(
-        ahora,
-        Session.getScriptTimeZone(),
+        new Date(),
+        "America/La_Paz",
         "HH:mm:ss"
       );
 
 
-    // --------------------------------------------------------
+    const regional =
+      String(
+        data.regional || ""
+      ).trim();
+
+
+    const premio =
+      String(
+        data.premio || ""
+      ).trim();
+
+
+    // ==========================================
     // GUARDAR
-    // --------------------------------------------------------
+    // ==========================================
 
     sheet.appendRow([
-
-      fechaFinal,
-
-      horaFinal,
-
+      fecha,
+      hora,
       regional,
-
-      factura,
-
+      invoice,
       premio
-
     ]);
 
 
-    // --------------------------------------------------------
-    // RESPUESTA
-    // --------------------------------------------------------
-
-    return respuesta("OK");
+    return respuesta({
+      ok: true,
+      saved: true
+    });
 
 
   } catch (error) {
 
-    console.error(error);
-
-    return respuesta(
-      "ERROR: " + error.message
-    );
-
-
-  } finally {
-
-    try {
-
-      lock.releaseLock();
-
-    } catch (error) {
-
-      // No hacer nada si el lock ya fue liberado
-
-    }
+    return respuesta({
+      ok: false,
+      error: error.message
+    });
 
   }
-
 }
 
 
-// ============================================================
-// PREPARAR ESTRUCTURA DE LA HOJA
-// ============================================================
+// ==========================================
+// COMPROBAR SI FACTURA EXISTE
+// ==========================================
 
-function prepararEncabezados(sheet) {
-
-  const encabezados = [
-
-    "Fecha",
-
-    "Hora",
-
-    "Regional",
-
-    "Factura",
-
-    "Premio"
-
-  ];
-
-
-  // ----------------------------------------------------------
-  // HOJA COMPLETAMENTE VACÍA
-  // ----------------------------------------------------------
-
-  if (sheet.getLastRow() === 0) {
-
-    sheet
-      .getRange(
-        1,
-        1,
-        1,
-        5
-      )
-      .setValues([
-        encabezados
-      ]);
-
-    return;
-
-  }
-
-
-  // ----------------------------------------------------------
-  // LEER ENCABEZADOS ACTUALES
-  // ----------------------------------------------------------
-
-  const actual =
-    sheet
-      .getRange(
-        1,
-        1,
-        1,
-        Math.max(
-          5,
-          sheet.getLastColumn()
-        )
-      )
-      .getDisplayValues()[0];
-
-
-  // ----------------------------------------------------------
-  // CASO 1:
-  // YA ESTÁ CORRECTA
-  // ----------------------------------------------------------
-
-  if (
-
-    actual[0] === "Fecha" &&
-
-    actual[1] === "Hora" &&
-
-    actual[2] === "Regional" &&
-
-    actual[3] === "Factura" &&
-
-    actual[4] === "Premio"
-
-  ) {
-
-    return;
-
-  }
-
-
-  // ----------------------------------------------------------
-  // CASO 2:
-  // ESTRUCTURA ANTIGUA
-  //
-  // Fecha | Hora | Factura | Premio
-  //
-  // Se inserta Regional en C.
-  // ----------------------------------------------------------
-
-  if (
-
-    actual[0] === "Fecha" &&
-
-    actual[1] === "Hora" &&
-
-    actual[2] === "Factura" &&
-
-    actual[3] === "Premio"
-
-  ) {
-
-    sheet.insertColumnBefore(3);
-
-
-    sheet
-      .getRange(
-        1,
-        1,
-        1,
-        5
-      )
-      .setValues([
-        encabezados
-      ]);
-
-
-    return;
-
-  }
-
-
-  // ----------------------------------------------------------
-  // CASO 3:
-  // ESTRUCTURA DESCONOCIDA
-  // ----------------------------------------------------------
-
-  sheet
-    .getRange(
-      1,
-      1,
-      1,
-      5
-    )
-    .setValues([
-      encabezados
-    ]);
-
-}
-
-
-// ============================================================
-// CONFIGURAR HOJA MANUALMENTE
-// ============================================================
-
-function configurarHoja() {
+function facturaExiste(invoice) {
 
   const spreadsheet =
-    SpreadsheetApp.openById(
-      SHEET_ID
-    );
+    SpreadsheetApp.getActiveSpreadsheet();
 
 
-  let sheet =
+  const sheet =
     spreadsheet.getSheetByName(
       SHEET_NAME
     );
 
 
   if (!sheet) {
-
-    sheet =
-      spreadsheet.insertSheet(
-        SHEET_NAME
-      );
-
+    throw new Error(
+      "No existe la hoja: " +
+      SHEET_NAME
+    );
   }
 
 
-  prepararEncabezados(
+  const lastRow =
+    sheet.getLastRow();
+
+
+  // Solo encabezados
+  if (lastRow < 2) {
+    return false;
+  }
+
+
+  // ==========================================
+  // LA COLUMNA D ES FACTURA
+  // ==========================================
+
+  const values =
     sheet
-  );
+      .getRange(
+        2,
+        4,
+        lastRow - 1,
+        1
+      )
+      .getDisplayValues();
 
 
-  Logger.log(
-    "Hoja configurada correctamente."
-  );
+  const normalizedInvoice =
+    String(invoice)
+      .trim()
+      .toLowerCase();
 
+
+  return values.some(row => {
+
+    return String(row[0])
+      .trim()
+      .toLowerCase() ===
+      normalizedInvoice;
+
+  });
 }
 
 
-// ============================================================
-// RESPUESTA
-// ============================================================
+// ==========================================
+// RESPUESTA JSON
+// ==========================================
 
-function respuesta(mensaje) {
+function respuesta(data) {
 
   return ContentService
-
     .createTextOutput(
-      mensaje
+      JSON.stringify(data)
     )
-
     .setMimeType(
-      ContentService.MimeType.TEXT
+      ContentService.MimeType.JSON
     );
-
 }

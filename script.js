@@ -251,16 +251,64 @@ function saveParticipation(data) {
   );
 }
 
+// ==========================================
+// COMPROBAR FACTURA EN GOOGLE SHEETS
+// ==========================================
 
-function invoiceAlreadyUsed(invoice) {
+async function checkInvoiceInGoogleSheets(invoice) {
 
-  return getParticipations().some(
-    item =>
-      String(item.invoice) === String(invoice)
-  );
+  try {
+
+    const url =
+      GOOGLE_SCRIPT_URL +
+      "?action=checkInvoice&invoice=" +
+      encodeURIComponent(invoice);
+
+
+    const response =
+      await fetch(url, {
+        method: "GET",
+        cache: "no-store"
+      });
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        "No se pudo consultar Google Sheets."
+      );
+
+    }
+
+
+    const data =
+      await response.json();
+
+
+    if (!data.ok) {
+
+      throw new Error(
+        data.error ||
+        "Error consultando la factura."
+      );
+
+    }
+
+
+    return data.exists;
+
+
+  } catch (error) {
+
+    console.error(
+      "Error comprobando factura:",
+      error
+    );
+
+
+    throw error;
+  }
 }
-
-
 // =============================
 // GOOGLE SHEETS
 // =============================
@@ -328,11 +376,7 @@ function setValidationState(type, message) {
 }
 
 
-// =============================
-// VALIDAR FACTURA
-// =============================
-
-function validateData() {
+async function validateData() {
 
   const regional =
     regionalSelect.value;
@@ -341,9 +385,9 @@ function validateData() {
     invoiceInput.value.trim();
 
 
-  // -----------------------------
+  // ==========================================
   // VALIDAR REGIONAL
-  // -----------------------------
+  // ==========================================
 
   if (!regional) {
 
@@ -358,9 +402,9 @@ function validateData() {
   }
 
 
-  // -----------------------------
+  // ==========================================
   // VALIDAR FACTURA
-  // -----------------------------
+  // ==========================================
 
   if (!invoice) {
 
@@ -375,80 +419,92 @@ function validateData() {
   }
 
 
-  // -----------------------------
-  // VALIDAR FACTURA REPETIDA
-  // -----------------------------
-
-  if (invoiceAlreadyUsed(invoice)) {
-
-    setValidationState(
-      "error",
-      "Esta factura ya participó anteriormente."
-    );
-
-    invoiceInput.focus();
-
-    return;
-  }
-
-
-  // -----------------------------
-  // GUARDAR PARTICIPANTE ACTUAL
-  // -----------------------------
-
-  currentParticipant = {
-
-    invoice: invoice,
-
-    regional: regional
-
-  };
-
-
-  // -----------------------------
-  // CARGAR PREMIOS DE LA REGIONAL
-  // -----------------------------
-
-  activePrizes =
-    prizesByRegional[regional] ||
-    prizesByRegional["La Paz"];
-
-
-  // -----------------------------
-  // DIBUJAR RULETA
-  // -----------------------------
-
-  drawWheel();
-
-
-  // -----------------------------
-  // MENSAJE
-  // -----------------------------
-
-  setValidationState(
-    "success",
-    "Factura válida. Preparando tu participación..."
-  );
-
+  // ==========================================
+  // CONSULTANDO GOOGLE SHEETS
+  // ==========================================
 
   validateBtn.disabled = true;
 
-
-  // -----------------------------
-  // DETENER CUALQUIER GIRO
-  // -----------------------------
-
-  stopIdleSpin();
-
-
-  // -----------------------------
-  // TRANSICIÓN
-  // -----------------------------
-
-  setTimeout(
-    showSuccessTransition,
-    600
+  setValidationState(
+    "",
+    "Verificando factura..."
   );
+
+
+  try {
+
+    const exists =
+      await checkInvoiceInGoogleSheets(
+        invoice
+      );
+
+
+    // ========================================
+    // FACTURA YA UTILIZADA
+    // ========================================
+
+    if (exists) {
+
+      setValidationState(
+        "error",
+        "Esta factura ya participó anteriormente."
+      );
+
+      validateBtn.disabled = false;
+
+      invoiceInput.focus();
+
+      return;
+    }
+
+
+    // ========================================
+    // FACTURA DISPONIBLE
+    // ========================================
+
+    currentParticipant = {
+      invoice,
+      regional
+    };
+
+
+    activePrizes =
+      prizesByRegional[regional] ||
+      prizesByRegional["La Paz"];
+
+
+    drawWheel();
+
+
+    setValidationState(
+      "success",
+      "Factura válida. Preparando tu participación..."
+    );
+
+
+    stopIdleSpin();
+
+
+    setTimeout(
+      showSuccessTransition,
+      600
+    );
+
+
+  } catch (error) {
+
+    console.error(error);
+
+
+    setValidationState(
+      "error",
+      "No se pudo verificar la factura. Intenta nuevamente."
+    );
+
+
+    validateBtn.disabled = false;
+
+  }
 }
 
 
@@ -1084,75 +1140,103 @@ function chooseWinnerIndex() {
 }
 
 
-// =============================
-// GIRO PRINCIPAL
-// =============================
+async function spinWheel() {
 
-function spinWheel() {
-
-  // -----------------------------
+  // ==========================================
   // SEGURIDAD
-  // -----------------------------
+  // ==========================================
 
   if (
     spinning ||
     !currentParticipant ||
     !activePrizes.length
   ) {
+    return;
+  }
+
+
+  // ==========================================
+  // COMPROBAR NUEVAMENTE LA FACTURA
+  // ==========================================
+
+  spinBtn.disabled = true;
+
+  const invoice =
+    currentParticipant.invoice;
+
+
+  try {
+
+    const exists =
+      await checkInvoiceInGoogleSheets(
+        invoice
+      );
+
+
+    if (exists) {
+
+      alert(
+        "Esta factura ya fue utilizada."
+      );
+
+
+      resetExperience();
+
+      return;
+    }
+
+
+  } catch (error) {
+
+    console.error(error);
+
+
+    alert(
+      "No se pudo verificar la factura. No se realizará el giro."
+    );
+
+
+    spinBtn.disabled = false;
 
     return;
   }
 
 
-  // -----------------------------
-  // INICIAR GIRO
-  // -----------------------------
+  // ==========================================
+  // AHORA SÍ: GIRAR
+  // ==========================================
 
   spinning = true;
 
-
-  // Detener idle
   stopIdleSpin();
 
-
-  // Deshabilitar botón
-  spinBtn.disabled = true;
-
-
-  // Efecto visual
   wheelStage.classList.add(
     "spinning"
   );
 
 
-  // -----------------------------
+  // ==========================================
   // ELEGIR PREMIO
-  // -----------------------------
+  // ==========================================
 
   const winnerIndex =
     chooseWinnerIndex();
 
 
-  // -----------------------------
-  // ÁNGULO DE CADA SEGMENTO
-  // -----------------------------
+  // ==========================================
+  // ÁNGULO
+  // ==========================================
 
   const segmentAngle =
     360 /
     activePrizes.length;
 
 
-  // Centro del segmento ganador
-
   const targetCenter =
     winnerIndex *
       segmentAngle +
     segmentAngle / 2;
 
-
-  // -----------------------------
-  // ROTACIÓN ACTUAL
-  // -----------------------------
 
   const startRotation =
     currentRotation;
@@ -1168,10 +1252,6 @@ function spinWheel() {
     ) %
     360;
 
-
-  // -----------------------------
-  // ÁNGULO FINAL
-  // -----------------------------
 
   const desiredMod =
     (
@@ -1191,11 +1271,8 @@ function spinWheel() {
   }
 
 
-  // -----------------------------
-  // NÚMERO DE VUELTAS
-  // -----------------------------
-
   const totalTurns = 9;
+
 
   const finalRotation =
     currentRotation +
@@ -1206,25 +1283,13 @@ function spinWheel() {
     delta;
 
 
-  // -----------------------------
-  // DURACIÓN
-  // -----------------------------
-
   const duration = 5600;
 
-
-  // -----------------------------
-  // SONIDO
-  // -----------------------------
 
   playTickSequence(
     duration
   );
 
-
-  // -----------------------------
-  // ANIMACIÓN
-  // -----------------------------
 
   const startTime =
     performance.now();
@@ -1242,9 +1307,6 @@ function spinWheel() {
         1
       );
 
-
-    // Easing:
-    // comienza rápido y termina suave.
 
     const eased =
       1 -
@@ -1278,10 +1340,6 @@ function spinWheel() {
     }
 
 
-    // -----------------------------
-    // TERMINÓ EL GIRO
-    // -----------------------------
-
     spinFrame = null;
 
 
@@ -1296,6 +1354,7 @@ function spinWheel() {
     finishSpin(
       winnerIndex
     );
+
   }
 
 
