@@ -147,6 +147,7 @@ let activePrizes = prizesByRegional["La Paz"];
 let currentRotation = 0;
 
 let spinning = false;
+let verificationAnimationTimer = null;
 
 let idleFrame = null;
 let spinFrame = null;
@@ -413,6 +414,92 @@ function checkInvoiceInGoogleSheets(invoice) {
   });
 }
 
+
+// ==========================================
+// CALENTAR CONEXIÓN CON GOOGLE SHEETS
+// ==========================================
+// Se ejecuta al cargar la web para que Apps Script
+// pueda estar listo cuando el usuario valide su factura.
+
+function warmupGoogleSheets() {
+
+  if (!GOOGLE_SCRIPT_URL) return;
+
+  const callbackName =
+    "warmup_" +
+    Date.now() +
+    "_" +
+    Math.floor(Math.random() * 100000);
+
+  const script =
+    document.createElement("script");
+
+  let terminado = false;
+
+  const limpiar = () => {
+
+    if (terminado) return;
+
+    terminado = true;
+
+    clearTimeout(timeout);
+
+    if (script.parentNode) {
+      script.parentNode.removeChild(script);
+    }
+
+    try {
+      delete window[callbackName];
+    } catch (e) {
+      window[callbackName] = undefined;
+    }
+  };
+
+  const timeout =
+    setTimeout(() => {
+
+      limpiar();
+
+      console.warn(
+        "Warmup de Google Sheets agotado."
+      );
+
+    }, 10000);
+
+  window[callbackName] =
+    function(data) {
+
+      if (terminado) return;
+
+      limpiar();
+
+      console.log(
+        "Google Sheets preparado:",
+        data
+      );
+    };
+
+  script.src =
+    GOOGLE_SCRIPT_URL +
+    "?action=warmup" +
+    "&callback=" +
+    encodeURIComponent(callbackName) +
+    "&t=" +
+    Date.now();
+
+  script.onerror = function() {
+
+    limpiar();
+
+    console.warn(
+      "No se pudo realizar el warmup de Google Sheets."
+    );
+  };
+
+  document.body.appendChild(script);
+}
+
+
 // =============================
 // GOOGLE SHEETS// =============================
 // GOOGLE SHEETS
@@ -482,6 +569,43 @@ function setValidationState(type, message) {
   statusText.textContent = message;
 }
 
+
+// ==========================================
+// ANIMACIÓN DEL ESTADO DE VERIFICACIÓN
+// ==========================================
+
+function startVerificationAnimation() {
+
+  stopVerificationAnimation();
+
+  const baseText = "Verificando factura";
+  let dots = 0;
+
+  statusText.textContent = baseText + "...";
+
+  verificationAnimationTimer =
+    setInterval(() => {
+
+      dots = (dots + 1) % 4;
+
+      statusText.textContent =
+        baseText + ".".repeat(dots);
+
+    }, 350);
+}
+
+function stopVerificationAnimation() {
+
+  if (verificationAnimationTimer) {
+
+    clearInterval(
+      verificationAnimationTimer
+    );
+
+    verificationAnimationTimer = null;
+  }
+}
+
 async function validateData() {
 
   const regional =
@@ -537,6 +661,8 @@ async function validateData() {
     "Verificando factura..."
   );
 
+  startVerificationAnimation();
+
 
   try {
 
@@ -564,6 +690,8 @@ async function validateData() {
       "RESULTADO:",
       exists
     );
+
+    stopVerificationAnimation();
 
 
     // ==========================================
@@ -641,6 +769,8 @@ async function validateData() {
 
 
   } catch (error) {
+
+    stopVerificationAnimation();
 
     console.error(
       "ERROR VALIDANDO FACTURA:",
@@ -1913,3 +2043,7 @@ buildBulbs();
 drawWheel();
 
 startIdleSpin();
+
+// Preparar Google Sheets en segundo plano.
+// No bloquea la carga de la página.
+warmupGoogleSheets();
