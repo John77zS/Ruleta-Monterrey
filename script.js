@@ -858,207 +858,150 @@ function showSuccessTransition() {
 
 function drawWheel() {
 
-  const size =
-    canvas.width;
+  const size = canvas.width;
+  const center = size / 2;
+  const radius = center - 14;
 
-  const center =
-    size / 2;
+  if (!activePrizes || activePrizes.length === 0) {
+    return;
+  }
 
-  const radius =
-    center - 14;
+  const arc = (Math.PI * 2) / activePrizes.length;
 
-  const arc =
-    Math.PI * 2 /
-    activePrizes.length;
-
-
-  ctx.clearRect(
-    0,
-    0,
-    size,
-    size
-  );
-
+  ctx.clearRect(0, 0, size, size);
 
   ctx.save();
+  ctx.translate(center, center);
 
-  ctx.translate(
-    center,
-    center
-  );
+  // =============================
+  // SEGMENTOS
+  // =============================
+  for (let i = 0; i < activePrizes.length; i++) {
 
-
-  for (
-    let i = 0;
-    i < activePrizes.length;
-    i++
-  ) {
-
-    const start =
-      -Math.PI / 2 +
-      i * arc;
-
-    const end =
-      start + arc;
-
-
-    // -----------------------------
-    // SEGMENTO
-    // -----------------------------
+    const start = -Math.PI / 2 + i * arc;
+    const end = start + arc;
 
     ctx.beginPath();
-
-    ctx.moveTo(
-      0,
-      0
-    );
-
-    ctx.arc(
-      0,
-      0,
-      radius,
-      start,
-      end
-    );
-
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, radius, start, end);
     ctx.closePath();
 
+    const esSigaParticipando =
+      activePrizes[i] === "Siga participando";
 
-    // -----------------------------
-    // GRADIENTE
-    // -----------------------------
+    if (esSigaParticipando) {
 
-    const gradient =
-      ctx.createRadialGradient(
-        0,
-        0,
-        90,
-        0,
-        0,
-        radius
+      const gradientBlanco = ctx.createRadialGradient(
+        0, 0, 90,
+        0, 0, radius
       );
 
+      gradientBlanco.addColorStop(0, "#ffffff");
+      gradientBlanco.addColorStop(0.58, "#ffffff");
+      gradientBlanco.addColorStop(1, "#e8e8e8");
 
-    gradient.addColorStop(
-      0,
-      i % 2 === 0
-        ? "#830309"
-        : "#0f0f11"
-    );
+      ctx.fillStyle = gradientBlanco;
 
+    } else {
 
-    gradient.addColorStop(
-      0.58,
-      colors[i % colors.length]
-    );
+      const gradient = ctx.createRadialGradient(
+        0, 0, 90,
+        0, 0, radius
+      );
 
+      gradient.addColorStop(
+        0,
+        i % 2 === 0 ? "#830309" : "#0f0f11"
+      );
 
-    gradient.addColorStop(
-      1,
-      i % 2 === 0
-        ? "#ff1824"
-        : "#303035"
-    );
+      gradient.addColorStop(
+        0.58,
+        colors[i % colors.length]
+      );
 
+      gradient.addColorStop(
+        1,
+        i % 2 === 0 ? "#ff1824" : "#303035"
+      );
 
-    ctx.fillStyle =
-      gradient;
+      ctx.fillStyle = gradient;
+    }
 
     ctx.fill();
 
-
-    // -----------------------------
-    // BORDE
-    // -----------------------------
-
-    ctx.strokeStyle =
-      "rgba(255,255,255,.42)";
-
-    ctx.lineWidth = 2;
-
+    // Separación entre segmentos
+    ctx.strokeStyle = "rgba(255,255,255,.48)";
+    ctx.lineWidth = 2.5;
     ctx.stroke();
 
-
-    // -----------------------------
+    // =============================
     // TEXTO
-    // -----------------------------
-
+    // =============================
     ctx.save();
 
-    ctx.rotate(
-      start + arc / 2
-    );
+    ctx.rotate(start + arc / 2);
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = "rgba(0,0,0,.35)";
+    ctx.shadowBlur = 4;
+    ctx.font = "800 20px Arial";
 
-    ctx.textAlign =
-      "right";
+    const words = activePrizes[i]
+      .toUpperCase()
+      .split(" ");
 
-    ctx.textBaseline =
-      "middle";
+    const split = Math.ceil(words.length / 2);
 
-    ctx.fillStyle =
-      "#fff";
+    const line1 = words
+      .slice(0, split)
+      .join(" ");
 
-    ctx.shadowColor =
-      "rgba(0,0,0,.6)";
+    const line2 = words
+      .slice(split)
+      .join(" ");
 
-    ctx.shadowBlur = 5;
+    if (activePrizes[i] === "Siga participando") {
 
-    ctx.font =
-      "800 20px Arial";
-
-
-    const words =
-      activePrizes[i]
-        .toUpperCase()
-        .split(" ");
-
-
-    const split =
-      Math.ceil(
-        words.length / 2
+      ctx.fillStyle = "#000000";
+      ctx.fillText(
+        "SIGA",
+        radius - 58,
+        -13
       );
 
-
-    const line1 =
-      words
-        .slice(0, split)
-        .join(" ");
-
-
-    const line2 =
-      words
-        .slice(split)
-        .join(" ");
-
-
-    ctx.fillText(
-      line1,
-      radius - 58,
-      -13
-    );
-
-
-    if (line2) {
-
+      ctx.fillStyle = "#e30613";
       ctx.fillText(
-        line2,
+        "PARTICIPANDO",
         radius - 58,
         13
       );
 
-    }
+    } else {
 
+      ctx.fillStyle = "#ffffff";
+
+      ctx.fillText(
+        line1,
+        radius - 58,
+        -13
+      );
+
+      if (line2) {
+        ctx.fillText(
+          line2,
+          radius - 58,
+          13
+        );
+      }
+    }
 
     ctx.restore();
   }
 
-
-  // -----------------------------
+  // =============================
   // BORDE EXTERIOR
-  // -----------------------------
-
+  // =============================
   ctx.beginPath();
-
   ctx.arc(
     0,
     0,
@@ -1067,13 +1010,9 @@ function drawWheel() {
     Math.PI * 2
   );
 
-  ctx.strokeStyle =
-    "rgba(255,255,255,.14)";
-
+  ctx.strokeStyle = "rgba(255,255,255,.14)";
   ctx.lineWidth = 7;
-
   ctx.stroke();
-
 
   ctx.restore();
 }
@@ -1727,7 +1666,7 @@ function finishSpin(
 
 
     resultMessage.textContent =
-      "Esta vez no hubo premio, pero puedes seguir participando en futuras promociones.";
+      "Esta vez no hubo premio, pero puedes seguir participando en futuras compras.";
 
 
     prizeLabel.textContent =
