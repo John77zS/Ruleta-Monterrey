@@ -2,67 +2,67 @@
 const prizesByRegional = {
   "La Paz": [
     "Gorra",
+    "Alcancia",
     "Tomatodo",
     "Bolsa ecologica",
     "Mochila",
     "Alcancia",
-    "Llavero",
-    "Boligrafo",
+    "Boligrafo + Llavero",
     "Siga participando"
   ],
 
   "Potosí": [
     "Gorra",
+    "Alcancia",
     "Tomatodo",
     "Bolsa ecologica",
     "Mochila",
     "Alcancia",
-    "Llavero",
-    "Boligrafo",
+    "Boligrafo + Llavero",
     "Siga participando"
   ],
 
   "Santa Cruz": [
     "Gorra",
+    "Alcancia",
     "Tomatodo",
     "Bolsa ecologica",
     "Mochila",
     "Alcancia",
-    "Llavero",
-    "Boligrafo",
+    "Boligrafo + Llavero",
     "Siga participando"
   ],
 
   "Sucre": [
     "Gorra",
+    "Alcancia",
     "Tomatodo",
     "Bolsa ecologica",
     "Mochila",
     "Alcancia",
-    "Llavero",
-    "Boligrafo",
+    "Boligrafo + Llavero",
     "Siga participando"
   ],
 
   "Tarija": [
     "Gorra",
+    "Alcancia",
     "Tomatodo",
     "Bolsa ecologica",
     "Mochila",
     "Alcancia",
-    "Llavero",
-    "Boligrafo",
+    "Boligrafo + Llavero",
     "Siga participando"
   ],
 
   "Trinidad": [
     "Gorra",
+    "Alcancia",
     "Tomatodo",
     "Bolsa ecologica",
     "Mochila",
     "Alcancia",
-    "Llavero",
-    "Boligrafo",
+    "Boligrafo + Llavero",
     "Siga participando"
   ]
 };
