@@ -2,67 +2,67 @@
 const prizesByRegional = {
   "La Paz": [
     "Gorra",
-    "Alcancia",
     "Tomatodo",
     "Bolsa ecologica",
     "Mochila",
     "Alcancia",
-    "Boligrafo + Llavero",
+    "Llavero",
+    "Boligrafo",
     "Siga participando"
   ],
 
   "Potosí": [
     "Gorra",
-    "Alcancia",
     "Tomatodo",
     "Bolsa ecologica",
     "Mochila",
     "Alcancia",
-    "Boligrafo + Llavero",
+    "Llavero",
+    "Boligrafo",
     "Siga participando"
   ],
 
   "Santa Cruz": [
     "Gorra",
-    "Alcancia",
     "Tomatodo",
     "Bolsa ecologica",
     "Mochila",
     "Alcancia",
-    "Boligrafo + Llavero",
+    "Llavero",
+    "Boligrafo",
     "Siga participando"
   ],
 
   "Sucre": [
     "Gorra",
-    "Alcancia",
     "Tomatodo",
     "Bolsa ecologica",
     "Mochila",
     "Alcancia",
-    "Boligrafo + Llavero",
+    "Llavero",
+    "Boligrafo",
     "Siga participando"
   ],
 
   "Tarija": [
     "Gorra",
-    "Alcancia",
     "Tomatodo",
     "Bolsa ecologica",
     "Mochila",
     "Alcancia",
-    "Boligrafo + Llavero",
+    "Llavero",
+    "Boligrafo",
     "Siga participando"
   ],
 
   "Trinidad": [
     "Gorra",
-    "Alcancia",
     "Tomatodo",
     "Bolsa ecologica",
     "Mochila",
     "Alcancia",
-    "Boligrafo + Llavero",
+    "Llavero",
+    "Boligrafo",
     "Siga participando"
   ]
 };
@@ -111,6 +111,89 @@ const validateBtn = document.getElementById("validateBtn");
 const validationCard = document.getElementById("validationCard");
 const statusText = document.getElementById("statusText");
 const regionalSelect = document.getElementById("regional");
+
+// =============================
+// SUCURSALES POR REGIONAL
+// =============================
+const branchesByRegional = {
+  "La Paz": ["15", "3", "18"],
+  "Potosí": ["19"],
+  "Santa Cruz": ["Central", "1", "2", "4", "5", "6", "7", "8", "9", "10", "12", "16", "21", "31", "32"],
+  "Sucre": ["17"],
+  "Tarija": ["20"],
+  "Trinidad": ["11"]
+};
+
+let branchSelect = null;
+
+function createBranchSelector() {
+  if (!regionalSelect || branchSelect) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.className = regionalSelect.parentElement?.className || "";
+  wrapper.id = "branchField";
+  wrapper.style.marginTop = "14px";
+
+  const label = document.createElement("label");
+  label.htmlFor = "branch";
+  label.textContent = "";
+
+  branchSelect = document.createElement("select");
+  branchSelect.id = "branch";
+  branchSelect.name = "branch";
+  branchSelect.className = regionalSelect.className;
+  branchSelect.disabled = true;
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Selecciona primero tu regional";
+  branchSelect.appendChild(placeholder);
+
+  wrapper.appendChild(label);
+  wrapper.appendChild(branchSelect);
+
+  const invoiceContainer = invoiceInput?.parentElement;
+  if (invoiceContainer?.parentElement) {
+    invoiceContainer.parentElement.insertBefore(wrapper, invoiceContainer);
+  } else {
+    invoiceInput?.insertAdjacentElement("beforebegin", wrapper);
+  }
+
+  branchSelect.addEventListener("change", () => {
+    if (branchSelect.value) {
+      setValidationState(
+        "",
+        "Sucursal seleccionada. Ingresa tu número de factura para continuar."
+      );
+    }
+  });
+}
+
+function updateBranchOptions(regional) {
+  if (!branchSelect) return;
+
+  const branches = branchesByRegional[regional] || [];
+  branchSelect.innerHTML = "";
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = branches.length
+    ? "Selecciona tu sucursal"
+    : "No hay sucursales disponibles";
+  branchSelect.appendChild(placeholder);
+
+  branches.forEach(branch => {
+    const option = document.createElement("option");
+    option.value = branch;
+    option.textContent = branch === "Central" ? "Central" : `Sucursal ${branch}`;
+    branchSelect.appendChild(option);
+  });
+
+  branchSelect.disabled = branches.length === 0;
+  branchSelect.value = "";
+}
+
+createBranchSelector();
 
 const invoiceDisplay = document.getElementById("invoiceDisplay");
 
@@ -511,6 +594,7 @@ function sendToGoogleSheets(record) {
     fecha: record.date,
     hora: record.time,
     regional: record.regional,
+    sucursal: record.sucursal,
     factura: record.invoice,
     premio: record.prize
   };
@@ -614,6 +698,9 @@ async function validateData() {
   const invoice =
     invoiceInput.value.trim();
 
+  const sucursal =
+    branchSelect ? branchSelect.value.trim() : "";
+
 
   // ==========================================
   // VALIDAR REGIONAL
@@ -628,6 +715,16 @@ async function validateData() {
 
     regionalSelect.focus();
 
+    return;
+  }
+
+  if (!sucursal) {
+    setValidationState(
+      "error",
+      "Selecciona una sucursal para continuar."
+    );
+
+    branchSelect?.focus();
     return;
   }
 
@@ -740,7 +837,9 @@ async function validateData() {
 
       invoice: invoice,
 
-      regional: regional
+      regional: regional,
+
+      sucursal: sucursal
 
     };
 
@@ -1598,6 +1697,9 @@ function finishSpin(
     regional:
       currentParticipant.regional,
 
+    sucursal:
+      currentParticipant.sucursal,
+
     prize:
       winner,
 
@@ -1852,6 +1954,10 @@ function resetExperience() {
   regionalSelect.value =
     "";
 
+  if (branchSelect) {
+    updateBranchOptions("");
+  }
+
 
   validateBtn.disabled =
     false;
@@ -1938,9 +2044,13 @@ regionalSelect.addEventListener(
   "change",
   () => {
 
+    updateBranchOptions(
+      regionalSelect.value.trim()
+    );
+
     setValidationState(
       "",
-      "Selecciona tu regional e ingresa tu número de factura para continuar."
+      "Selecciona tu sucursal e ingresa tu número de factura para continuar."
     );
 
   }
