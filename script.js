@@ -755,7 +755,7 @@ async function validateData() {
 
   setValidationState(
     "",
-    "Verificando factura..."
+    "Preparando tu participación..."
   );
 
   startVerificationAnimation();
@@ -774,62 +774,18 @@ async function validateData() {
 
 
     // ==========================================
-    // CONSULTAR GOOGLE SHEETS
+    // FACTURA
     // ==========================================
-
-    const exists =
-      await checkInvoiceInGoogleSheets(
-        invoice
-      );
-
-
-    console.log(
-      "RESULTADO:",
-      exists
-    );
+    // No se bloquean facturas repetidas.
+    // La misma factura puede participar nuevamente.
 
     stopVerificationAnimation();
 
-
-    // ==========================================
-    // FACTURA DUPLICADA
-    // ==========================================
-
-    if (exists === true) {
-
-      console.log(
-        "🚫 FACTURA DUPLICADA"
-      );
-
-
-      setValidationState(
-        "error",
-        "Esta factura ya participó anteriormente."
-      );
-
-
-      // MUY IMPORTANTE:
-      // NO crear participante
-      // NO pasar a la ruleta
-      // NO ejecutar transición
-
-      currentParticipant = null;
-
-
-      validateBtn.disabled = false;
-
-      invoiceInput.focus();
-
-      return;
-    }
-
-
-    // ==========================================
-    // FACTURA DISPONIBLE
-    // ==========================================
-
     console.log(
-      "✅ FACTURA DISPONIBLE"
+      "✅ FACTURA ACEPTADA:",
+      invoice,
+      "Sucursal:",
+      sucursal
     );
 
 
